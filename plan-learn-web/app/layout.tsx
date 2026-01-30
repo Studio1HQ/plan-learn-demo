@@ -17,20 +17,22 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "AI Finance Assistant Demo",
+    default: "Plan & Learn Agent Demo",
     template: "%s · Memori Demo",
   },
   description:
-    "A demo AI finance assistant built by the Memori team to showcase long-term memory, targeted recall, and real-time AI workflows in production.",
-  applicationName: "Memori Finance Assistant Demo",
+    "A self-learning research agent that plans tasks step-by-step, executes them, and learns from successful runs. Built with Memori for persistent pattern memory.",
+  applicationName: "Plan & Learn Agent Demo",
   keywords: [
-    "AI finance assistant",
+    "Plan & Learn agent",
+    "self-learning AI",
     "Memori demo",
     "AI memory",
     "long-term memory",
-    "context-aware AI",
+    "pattern learning",
+    "task planning",
     "LLM memory",
-    "financial insights",
+    "research agent",
     "streaming AI chat",
   ],
   authors: [{ name: "Memori Labs" }],
@@ -38,18 +40,18 @@ export const metadata: Metadata = {
   publisher: "GibsonAI, Inc. dba Memori Labs",
 
   openGraph: {
-    title: "AI Finance Assistant Demo · Built with Memori",
+    title: "Plan & Learn Agent Demo · Built with Memori",
     description:
-      "A reference finance assistant demonstrating how Memori enables persistent, explainable memory for AI agents across sessions.",
+      "A self-learning agent that breaks down tasks, executes them, and stores successful patterns for future use. No fine-tuning needed.",
     type: "website",
     siteName: "Memori Demos",
   },
 
   twitter: {
     card: "summary_large_image",
-    title: "AI Finance Assistant Demo · Built with Memori",
+    title: "Plan & Learn Agent Demo · Built with Memori",
     description:
-      "See how Memori powers long-term memory and targeted recall in a real-world AI finance assistant demo.",
+      "See how Memori powers a self-learning research agent that gets smarter with every task completed.",
   },
 
   category: "Technology",
