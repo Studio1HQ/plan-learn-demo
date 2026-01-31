@@ -35,12 +35,14 @@ def get_memori_facts(user_id: str, query: str) -> list[dict]:
         for row in rows:
             # Safely handle row data
             try:
-                if len(row) >= 3:
+                if row and len(row) >= 3:
                     facts.append({
                         "fact": row[0] if row[0] else "",
                         "mention_count": row[1] if row[1] is not None else 1,
                         "last_mentioned": str(row[2]) if row[2] else None
                     })
+                else:
+                    print(f"[DEBUG] Skipping row with insufficient columns in facts: {row}")
             except (IndexError, TypeError) as row_error:
                 print(f"Warning: Skipping malformed row in memori facts: {row}, error: {row_error}")
                 continue
@@ -71,7 +73,7 @@ def get_memori_session_info(user_id: str) -> dict:
             WHERE e.external_id = %s
         """, (user_id,))
         result = cursor.fetchone()
-        session_info["total_sessions"] = result[0] if result and len(result) > 0 else 0
+        session_info["total_sessions"] = result[0] if result and result[0] is not None else 0
 
         # Count messages
         cursor.execute("""
@@ -83,7 +85,7 @@ def get_memori_session_info(user_id: str) -> dict:
             WHERE e.external_id = %s
         """, (user_id,))
         result = cursor.fetchone()
-        session_info["total_messages"] = result[0] if result and len(result) > 0 else 0
+        session_info["total_messages"] = result[0] if result and result[0] is not None else 0
     except Exception as e:
         print(f"Error fetching session info: {e}")
         import traceback
@@ -301,49 +303,61 @@ def get_learned_patterns(user_id: str, task_type: str = None, keywords: list = N
 
     patterns = []
     try:
-        # Search for patterns in entity facts that contain strategy information
-        search_terms = [task_type] if task_type else []
+        search_terms = []
+        if task_type:
+            search_terms.append(task_type)
         if keywords:
-            search_terms.extend(keywords)
+            search_terms.extend([k for k in keywords if k])
 
         if search_terms:
-            # Search for facts containing any of the search terms
-            search_query = " OR ".join([f"f.content ILIKE %s" for _ in search_terms])
+            search_conditions = " OR ".join([f"f.content ILIKE %s" for _ in search_terms])
             params = [f"%{term}%" for term in search_terms]
             params.append(user_id)
+            
+            print(f"[DEBUG] search_terms: {search_terms}")
+            print(f"[DEBUG] params count: {len(params)}")
+            print(f"[DEBUG] search_conditions: {search_conditions}")
 
-            cursor.execute(f"""
+            sql = f"""
                 SELECT f.content, f.num_times, f.date_last_time
                 FROM memori_entity_fact f
                 JOIN memori_entity e ON f.entity_id = e.id
-                WHERE ({search_query})
+                WHERE ({search_conditions})
                 AND e.external_id = %s
-                AND (f.content ILIKE '%strategy%' OR f.content ILIKE '%pattern%' OR f.content ILIKE '%approach%' OR f.content ILIKE '%steps%')
+                AND (f.content ILIKE %s OR f.content ILIKE %s OR f.content ILIKE %s OR f.content ILIKE %s)
                 ORDER BY f.num_times DESC, f.date_last_time DESC
                 LIMIT 5
-            """, tuple(params))
+            """
+            
+            params.extend(['%strategy%', '%pattern%', '%approach%', '%steps%'])
+            
+            print(f"[DEBUG] SQL placeholders count: {sql.count('%s')}, params count: {len(params)}")
+            
+            cursor.execute(sql, tuple(params))
         else:
-            # Get recent patterns for this user
+            print(f"[DEBUG] No search terms, using simple query for user_id: {user_id}")
             cursor.execute("""
                 SELECT f.content, f.num_times, f.date_last_time
                 FROM memori_entity_fact f
                 JOIN memori_entity e ON f.entity_id = e.id
                 WHERE e.external_id = %s
-                AND (f.content ILIKE '%strategy%' OR f.content ILIKE '%pattern%' OR f.content ILIKE '%approach%' OR f.content ILIKE '%steps%')
+                AND (f.content ILIKE %s OR f.content ILIKE %s OR f.content ILIKE %s OR f.content ILIKE %s)
                 ORDER BY f.num_times DESC, f.date_last_time DESC
                 LIMIT 5
-            """, (user_id,))
+            """, (user_id, '%strategy%', '%pattern%', '%approach%', '%steps%'))
 
         rows = cursor.fetchall()
+        print(f"[DEBUG] Found {len(rows)} rows")
         for row in rows:
-            # Safely handle row data
             try:
-                if len(row) >= 3:
+                if row and len(row) >= 3:
                     patterns.append({
                         "pattern": row[0] if row[0] else "",
                         "times_used": row[1] if row[1] is not None else 1,
                         "last_used": str(row[2]) if row[2] else None
                     })
+                else:
+                    print(f"[DEBUG] Skipping row with insufficient columns: {row}")
             except (IndexError, TypeError) as row_error:
                 print(f"Warning: Skipping malformed row in learned patterns: {row}, error: {row_error}")
                 continue
@@ -356,8 +370,6 @@ def get_learned_patterns(user_id: str, task_type: str = None, keywords: list = N
         conn.close()
 
     return patterns
-
-
 def execute_tool(tool_name: str, args: dict, user_id: str) -> str:
     if tool_name == "create_plan":
         task_description = args.get("task_description", "")

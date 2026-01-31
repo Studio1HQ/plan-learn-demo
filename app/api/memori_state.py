@@ -237,11 +237,11 @@ async def get_learned_patterns(user_id: str, task_type: Optional[str] = None, li
                 JOIN memori_entity e ON f.entity_id = e.id
                 WHERE e.external_id = %s
                 AND (
-                    f.content ILIKE '%strategy%'
-                    OR f.content ILIKE '%pattern%'
-                    OR f.content ILIKE '%approach%'
-                    OR f.content ILIKE '%steps%'
-                    OR f.content ILIKE '%learned%'
+                    f.content ILIKE '%%strategy%%'
+                    OR f.content ILIKE '%%pattern%%'
+                    OR f.content ILIKE '%%approach%%'
+                    OR f.content ILIKE '%%steps%%'
+                    OR f.content ILIKE '%%learned%%'
                 )
                 AND f.content ILIKE %s
                 ORDER BY f.num_times DESC, f.date_last_time DESC
@@ -255,13 +255,13 @@ async def get_learned_patterns(user_id: str, task_type: Optional[str] = None, li
                 JOIN memori_entity e ON f.entity_id = e.id
                 WHERE e.external_id = %s
                 AND (
-                    f.content ILIKE '%strategy%'
-                    OR f.content ILIKE '%pattern%'
-                    OR f.content ILIKE '%approach%'
-                    OR f.content ILIKE '%steps%'
-                    OR f.content ILIKE '%learned%'
-                    OR f.content ILIKE '%successful%'
-                    OR f.content ILIKE '%effective%'
+                    f.content ILIKE '%%strategy%%'
+                    OR f.content ILIKE '%%pattern%%'
+                    OR f.content ILIKE '%%approach%%'
+                    OR f.content ILIKE '%%steps%%'
+                    OR f.content ILIKE '%%learned%%'
+                    OR f.content ILIKE '%%successful%%'
+                    OR f.content ILIKE '%%effective%%'
                 )
                 ORDER BY f.num_times DESC, f.date_last_time DESC
                 LIMIT %s
@@ -315,9 +315,9 @@ async def get_task_stats(user_id: str):
             JOIN memori_entity e ON f.entity_id = e.id
             WHERE e.external_id = %s
             AND (
-                f.content ILIKE '%strategy%'
-                OR f.content ILIKE '%pattern%'
-                OR f.content ILIKE '%learned%'
+                f.content ILIKE '%%strategy%%'
+                OR f.content ILIKE '%%pattern%%'
+                OR f.content ILIKE '%%learned%%'
             )
         """, (user_id,))
         result = cursor.fetchone()

@@ -16,28 +16,41 @@ interface StepItem {
 
 // Parse numbered list items from markdown content
 function parseSteps(content: string): { steps: StepItem[]; hasSteps: boolean } {
+  // Skip if content looks like documentation/how-it-works (has "How I Work" or similar headers)
+  const docHeaders = ['how i work', 'how it works', 'what makes me special', 'features', 'try asking me']
+  const lowerContent = content.toLowerCase()
+  for (const header of docHeaders) {
+    if (lowerContent.includes(header)) {
+      return { steps: [], hasSteps: false }
+    }
+  }
+  
   // Match patterns like "1. Step text", "2. Another step", etc.
-  // Also matches "1) Step text" format
+  // Look for actionable plan steps (longer text that describes doing something)
   const stepRegex = /^(\d+)[.\)]\s+(.+?)(?=\n\d+[.\)]|\n*$)/gm
   
   const steps: StepItem[] = []
   let match
   
   while ((match = stepRegex.exec(content)) !== null) {
-    steps.push({
-      number: parseInt(match[1]),
-      text: match[2].trim().replace(/\n+/g, " "),
-      fullMatch: match[0]
-    })
+    const stepText = match[2].trim().replace(/\n+/g, " ")
+    // Only include if it looks like a substantial step (not just a label)
+    if (stepText.length > 15) {
+      steps.push({
+        number: parseInt(match[1]),
+        text: stepText,
+        fullMatch: match[0]
+      })
+    }
   }
   
   // Also try alternative: look for lines starting with number
   if (steps.length === 0) {
     const lineRegex = /^(\d+)[.\)]\s*(.+)$/gm
     while ((match = lineRegex.exec(content)) !== null) {
-      // Only include if it looks like a step (reasonable length)
       const text = match[2].trim()
-      if (text.length > 5 && text.length < 200) {
+      // Only include if it looks like a real step (longer text)
+      if (text.length > 15 && text.length < 300) {
         steps.push({
           number: parseInt(match[1]),
           text: text,

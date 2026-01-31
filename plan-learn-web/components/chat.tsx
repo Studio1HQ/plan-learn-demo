@@ -19,6 +19,7 @@ import { ClickableSteps } from "@/components/clickable-steps"
 type Message = {
   role: "user" | "assistant"
   content: string
+  isWelcome?: boolean
 }
 
 // Parse stream content to separate Memori events from text
@@ -64,25 +65,28 @@ const assistantMessage = (content = ""): Message => ({
 
 const WELCOME_MESSAGE: Message = {
   role: "assistant",
-  content: `Hi! I'm your **Plan & Learn** Agent powered by **Memori** 
+  content: `Hi! I'm your **Plan and Learn** Agent powered by **Memori**.
 
-## How I Work:
-1. **Recall** - Before planning, I search my memory for similar past tasks
-2. **Plan** - I create a step-by-step strategy, reusing proven patterns
-3. **Execute** - I work through each step methodically
-4. **Learn** - I store what worked for future similar tasks
+I break down complex tasks into steps, execute them, and learn from each success.
 
-## What makes me special:
-**Long-term Memory** - I remember every task across all our conversations
-**Pattern Learning** - I recognize what works and apply it automatically
-**Continuous Improvement** - The more tasks we complete, the smarter I get
+**How I Work:**
+- **Recall**: Search memory for similar past tasks
+- **Plan**: Create step-by-step strategies  
+- **Execute**: Work through each step
+- **Learn**: Store patterns for future use
 
-## Try asking me:
-- "Research the best practices for building a REST API"
-- "Help me create a study plan for learning Python"
-- "Analyze this problem and suggest solutions"
+**What makes me special:**
+- Long-term memory across all conversations
+- Pattern recognition and reuse
+- Continuous improvement
 
-What task would you like me to help you plan and execute?`
+**Try asking me:**
+- "Research REST API best practices"
+- "Create a study plan for Python"
+- "Analyze this problem"
+
+What task would you like help with?`,
+  isWelcome: true
 }
 
 interface ChatProps {
@@ -474,8 +478,8 @@ export function Chat({ userId, onApiKeyChange, onWorkflowEvent }: ChatProps) {
               {m.role === "assistant" ? (
                 <>
                   <MarkdownMessage content={m.content} />
-                  {/* Show clickable steps for assistant messages with numbered lists */}
-                  {!isTyping && i === messages.length - 1 && m.role === "assistant" && (
+                  {/* Show clickable steps for assistant messages (skip welcome message) */}
+                  {!isTyping && i === messages.length - 1 && m.role === "assistant" && !m.isWelcome && (
                     <ClickableSteps 
                       content={m.content} 
                       onStepClick={(stepText) => {
