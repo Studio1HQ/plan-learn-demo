@@ -4,9 +4,9 @@ import { useState, useCallback, useEffect } from "react"
 import Image from "next/image"
 
 import { motion, AnimatePresence } from "framer-motion"
-import { AlertsPanel } from "@/components/alerts-panel"
 import { Chat } from "@/components/chat"
-import { Tasks } from "@/components/tasks"
+import { WorkflowStepper } from "@/components/workflow-stepper"
+import { WorkflowProvider } from "@/lib/workflow-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 
@@ -346,140 +346,134 @@ export default function Home() {
   }
 
   return (
-    <motion.main
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.3 }}
-      className="h-screen flex flex-col overflow-hidden"
-    >
-      {/* Header */}
-      <motion.header
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="shrink-0 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60"
+    <WorkflowProvider>
+      <motion.main
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.3 }}
+        className="h-screen flex flex-col overflow-hidden"
       >
-        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <a
-              href={MEMORI_SITE_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-2 hover:opacity-80 transition-opacity"
-            >
-              <Image
-                src="/logo-light.webp"
-                alt="Memori"
-                width={32}
-                height={100}
-                className="rounded"
-              />
-            </a>
-            <div>
-              <h1 className="text-lg font-bold">Plan & Learn Agent</h1>
-              <p className="text-muted-foreground text-xs">Self-learning research agent</p>
+        {/* Header */}
+        <motion.header
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="shrink-0 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60"
+        >
+          <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <a
+                href={MEMORI_SITE_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+              >
+                <Image
+                  src="/logo-light.webp"
+                  alt="Memori"
+                  width={32}
+                  height={100}
+                  className="rounded"
+                />
+              </a>
+              <div>
+                <h1 className="text-lg font-bold">Plan & Learn Agent</h1>
+                <p className="text-muted-foreground text-xs">Self-learning research agent</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-muted-foreground">
+                <strong>{userId}</strong>
+              </span>
+              <AnimatePresence mode="wait">
+                {showResetConfirm ? (
+                  <motion.div
+                    key="confirm"
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    className="flex gap-2"
+                  >
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={handleReset}
+                      disabled={isResetting}
+                    >
+                      {isResetting ? "..." : "Confirm"}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowResetConfirm(false)}
+                    >
+                      Cancel
+                    </Button>
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="actions"
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    className="flex gap-2"
+                  >
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowResetConfirm(true)}
+                    >
+                      Reset
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setIsLoggedIn(false)
+                        setInputValue("")
+                        setApiKey("")
+                      }}
+                    >
+                      Switch User
+                    </Button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <span className="text-sm text-muted-foreground">
-              <strong>{userId}</strong>
-            </span>
-            <AnimatePresence mode="wait">
-              {showResetConfirm ? (
-                <motion.div
-                  key="confirm"
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  className="flex gap-2"
-                >
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={handleReset}
-                    disabled={isResetting}
-                  >
-                    {isResetting ? "..." : "Confirm"}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setShowResetConfirm(false)}
-                  >
-                    Cancel
-                  </Button>
-                </motion.div>
-              ) : (
-                <motion.div
-                  key="actions"
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  className="flex gap-2"
-                >
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setShowResetConfirm(true)}
-                  >
-                    Reset
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setIsLoggedIn(false)
-                      setInputValue("")
-                      setApiKey("")
-                    }}
-                  >
-                    Switch User
-                  </Button>
-                </motion.div>
-              )}
-            </AnimatePresence>
+        </motion.header>
+
+        {/* Main content - fills remaining viewport */}
+        <div className="flex-1 overflow-hidden">
+          <div className="h-full max-w-7xl mx-auto p-4">
+            <div className="h-full grid gap-4 lg:grid-cols-[1fr_400px]">
+              {/* Chat - main area */}
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.1 }}
+                className="h-full overflow-hidden"
+              >
+                <Chat userId={userId} onApiKeyChange={handleApiKeyChange} />
+              </motion.div>
+
+              {/* Right sidebar - Workflow Stepper with tabs */}
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.2 }}
+                className="h-full overflow-hidden hidden lg:block"
+              >
+                <WorkflowStepper userId={userId} apiKey={apiKey} />
+              </motion.div>
+            </div>
           </div>
         </div>
-      </motion.header>
 
-      {/* Main content - fills remaining viewport */}
-      <div className="flex-1 overflow-hidden">
-        <div className="h-full max-w-7xl mx-auto p-4">
-          <div className="h-full grid gap-4 lg:grid-cols-[1fr_320px]">
-            {/* Chat - main area */}
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.1 }}
-              className="h-full overflow-hidden"
-            >
-              <Chat userId={userId} onApiKeyChange={handleApiKeyChange} />
-            </motion.div>
-
-            {/* Right sidebar - Patterns & Tasks */}
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.2 }}
-              className="h-full flex flex-col gap-4 overflow-hidden"
-            >
-              {/* Patterns panel - takes ~50% */}
-              <div className="flex-1 min-h-0 overflow-hidden">
-                <AlertsPanel userId={userId} apiKey={apiKey} />
-              </div>
-
-              {/* Tasks panel - takes ~50% */}
-              <div className="flex-1 min-h-0 overflow-hidden">
-                <Tasks userId={userId} />
-              </div>
-            </motion.div>
-          </div>
+        {/* Footer with Powered by Memori */}
+        <div className="shrink-0 border-t py-2 bg-muted/30">
+          <PoweredByMemori />
         </div>
-      </div>
-
-      {/* Footer with Powered by Memori */}
-      <div className="shrink-0 border-t py-2 bg-muted/30">
-        <PoweredByMemori />
-      </div>
-    </motion.main>
+      </motion.main>
+    </WorkflowProvider>
   )
 }

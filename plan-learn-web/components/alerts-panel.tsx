@@ -30,10 +30,12 @@ const alertKeys = {
 
 export function AlertsPanel({
   userId,
-  apiKey
+  apiKey,
+  compact = false,
 }: {
   userId: string
   apiKey?: string
+  compact?: boolean
 }) {
   const [isConnected, setIsConnected] = useState(false)
   const [newAlertIds, setNewAlertIds] = useState<Set<string>>(new Set())
@@ -169,11 +171,13 @@ export function AlertsPanel({
   if (isLoading) {
     return (
       <div className="flex flex-col h-full">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-semibold">Learned Patterns</h2>
-          <Skeleton className="h-8 w-24" />
-        </div>
-        <Card className="p-3 flex-1">
+        {!compact && (
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-lg font-semibold">Learned Patterns</h2>
+            <Skeleton className="h-8 w-24" />
+          </div>
+        )}
+        <Card className={`${compact ? 'p-2' : 'p-3'} flex-1`}>
           <div className="space-y-2">
             <Skeleton className="h-4 w-full" />
             <Skeleton className="h-4 w-3/4" />
@@ -186,8 +190,8 @@ export function AlertsPanel({
   if (error) {
     return (
       <div className="flex flex-col h-full">
-        <h2 className="text-lg font-semibold mb-3">Learned Patterns</h2>
-        <Card className="p-3 border-destructive flex-1">
+        {!compact && <h2 className="text-lg font-semibold mb-3">Learned Patterns</h2>}
+        <Card className={`${compact ? 'p-2' : 'p-3'} border-destructive flex-1`}>
           <p className="text-sm text-destructive">Failed to load patterns</p>
         </Card>
       </div>
@@ -199,49 +203,72 @@ export function AlertsPanel({
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <h2 className="text-lg font-semibold">Patterns</h2>
-          {isConnected && (
-            <motion.span
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              className="w-2 h-2 bg-green-500 rounded-full"
-              title="Live updates active"
-            />
-          )}
+      {!compact && (
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <h2 className="text-lg font-semibold">Patterns</h2>
+            {isConnected && (
+              <motion.span
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                className="w-2 h-2 bg-green-500 rounded-full"
+                title="Live updates active"
+              />
+            )}
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => generateMutation.mutate()}
+            disabled={generateMutation.isPending}
+            className="text-xs h-7"
+          >
+            {generateMutation.isPending ? (
+              <motion.span
+                animate={{ opacity: [1, 0.5, 1] }}
+                transition={{ repeat: Infinity, duration: 1 }}
+              >
+                Analyzing...
+              </motion.span>
+            ) : (
+              "✨ Extract Patterns"
+            )}
+          </Button>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => generateMutation.mutate()}
-          disabled={generateMutation.isPending}
-          className="text-xs h-7"
-        >
-          {generateMutation.isPending ? (
-            <motion.span
-              animate={{ opacity: [1, 0.5, 1] }}
-              transition={{ repeat: Infinity, duration: 1 }}
-            >
-              Analyzing...
-            </motion.span>
-          ) : (
-            "✨ Extract Patterns"
-          )}
-        </Button>
-      </div>
+      )}
+      {compact && (
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs font-medium text-muted-foreground">
+              {unacknowledgedAlerts.length} active
+            </span>
+            {isConnected && (
+              <span className="w-1.5 h-1.5 bg-green-500 rounded-full" title="Live" />
+            )}
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => generateMutation.mutate()}
+            disabled={generateMutation.isPending}
+            className="text-[10px] h-6 px-2"
+          >
+            {generateMutation.isPending ? "..." : "✨ Extract"}
+          </Button>
+        </div>
+      )}
 
       <div className="flex-1 overflow-hidden flex flex-col">
         {unacknowledgedAlerts.length === 0 && acknowledgedAlerts.length === 0 ? (
-          <Card className="p-4 bg-muted/50 flex-1 flex items-center justify-center">
-            <p className="text-sm text-muted-foreground text-center">
-              No patterns learned yet. Complete tasks to build your knowledge base!
+          <Card className={`${compact ? 'p-3' : 'p-4'} bg-muted/50 flex-1 flex items-center justify-center`}>
+            <p className={`${compact ? 'text-xs' : 'text-sm'} text-muted-foreground text-center`}>
+              {compact ? 'No patterns yet' : 'No patterns learned yet. Complete tasks to build your knowledge base!'}
             </p>
           </Card>
         ) : (
           <div className="space-y-2 overflow-y-auto flex-1">
             <AnimatePresence mode="popLayout">
-              {unacknowledgedAlerts.slice(0, 5).map((a, index) => (
+              {unacknowledgedAlerts.slice(0, compact ? 4 : 5).map((a, index) => (
                 <motion.div
                   key={a.id}
                   layout
@@ -256,7 +283,7 @@ export function AlertsPanel({
                   }}
                 >
                   <Card
-                    className={`p-3 transition-all cursor-pointer hover:shadow-md ${getAlertBgColor(a.alert_type, newAlertIds.has(a.id))} ${expandedAlertId === a.id ? "ring-2 ring-primary" : ""}`}
+                    className={`${compact ? 'p-2' : 'p-3'} transition-all cursor-pointer hover:shadow-md ${getAlertBgColor(a.alert_type, newAlertIds.has(a.id))} ${expandedAlertId === a.id ? "ring-2 ring-primary" : ""}`}
                     onClick={() => setExpandedAlertId(expandedAlertId === a.id ? null : a.id)}
                   >
                     <div className="flex items-start justify-between gap-2">

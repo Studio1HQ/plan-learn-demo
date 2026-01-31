@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState, useCallback } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
@@ -10,6 +10,8 @@ import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { api, apiStream } from "@/lib/api"
 import { MemoriVisualizer, type MemoriEvent } from "@/components/memori-visualizer"
+import { useWorkflow } from "@/lib/workflow-context"
+import { mapEventToActions } from "@/lib/workflow-event-handler"
 
 type Message = {
   role: "user" | "assistant"
@@ -82,11 +84,12 @@ What task would you like me to help you plan and execute?`
 interface ChatProps {
   userId: string
   onApiKeyChange?: (apiKey: string) => void
+  onWorkflowEvent?: (event: MemoriEvent) => void
 }
 
 const MEMORI_SIGNUP_URL = "https://memorilabs.ai"
 
-export function Chat({ userId, onApiKeyChange }: ChatProps) {
+export function Chat({ userId, onApiKeyChange, onWorkflowEvent }: ChatProps) {
   const [messages, setMessages] = useState<Message[]>([WELCOME_MESSAGE])
   const [input, setInput] = useState("")
   const [apiKey, setApiKey] = useState("")
@@ -102,11 +105,33 @@ export function Chat({ userId, onApiKeyChange }: ChatProps) {
   const [isLoadingUsage, setIsLoadingUsage] = useState(true)
   const [memoriEvents, setMemoriEvents] = useState<MemoriEvent[]>([])
   const [showMemoriVisualizer, setShowMemoriVisualizer] = useState(false)
+  const [processedEventIds, setProcessedEventIds] = useState<Set<string>>(new Set())
 
   const abortRef = useRef<AbortController | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const apiKeyInputRef = useRef<HTMLInputElement>(null)
   const memoriKeyInputRef = useRef<HTMLInputElement>(null)
+
+  // Get workflow context for dispatching events
+  const { state: workflowState, dispatch: workflowDispatch, startWorkflow, resetWorkflow } = useWorkflow()
+
+  // Process workflow events
+  const processWorkflowEvent = useCallback((event: MemoriEvent) => {
+    // Create a unique ID for the event to avoid duplicate processing
+    const eventId = `${event.type}-${event.message}-${Date.now()}`
+    if (processedEventIds.has(eventId)) return
+
+    setProcessedEventIds(prev => new Set([...prev, eventId]))
+
+    // Map the event to workflow actions and dispatch them
+    const actions = mapEventToActions(event, workflowState.currentStepIndex)
+    for (const action of actions) {
+      workflowDispatch(action)
+    }
+
+    // Also call the onWorkflowEvent callback if provided
+    onWorkflowEvent?.(event)
+  }, [workflowState.currentStepIndex, workflowDispatch, onWorkflowEvent, processedEventIds])
 
   // Fetch usage info
   async function refreshUsage() {
@@ -249,6 +274,11 @@ export function Chat({ userId, onApiKeyChange }: ChatProps) {
     // Reset Memori state for new message
     setMemoriEvents([])
     setShowMemoriVisualizer(true)
+    setProcessedEventIds(new Set())
+
+    // Reset and start workflow tracking
+    resetWorkflow()
+    startWorkflow()
 
     setMessages(prev => [
       ...prev,
@@ -329,9 +359,13 @@ export function Chat({ userId, onApiKeyChange }: ChatProps) {
         // Parse the accumulated content to extract Memori events and text
         const { text, events } = parseStreamContent(rawContent)
 
-        // Update Memori events
+        // Update Memori events and dispatch to workflow
         if (events.length > 0) {
           setMemoriEvents(events)
+          // Process each new event for workflow tracking
+          for (const event of events) {
+            processWorkflowEvent(event)
+          }
         }
 
         // Update message with clean text (no Memori blocks)
