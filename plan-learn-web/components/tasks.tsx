@@ -12,13 +12,15 @@ import { Skeleton } from "@/components/ui/skeleton"
 
 type TaskType = "research" | "planning" | "analysis" | "writing" | "coding"
 
+type OutcomeType = "completed" | "learned" | "adapted"
+
 type Task = {
   id: string
   date: string
   name: string
-  score: number
   task_type: string
-  type?: TaskType
+  outcome: OutcomeType
+  notes?: string
   created_at?: string
 }
 
@@ -26,9 +28,9 @@ type SampleTask = {
   id: string
   date: string
   name: string
-  score: number
   task_type: string
-  type?: TaskType
+  outcome: OutcomeType
+  notes?: string
 }
 
 const TASK_CATEGORIES = [
@@ -39,14 +41,18 @@ const TASK_CATEGORIES = [
   { id: "coding", label: "Coding" },
 ]
 
+const OUTCOMES = [
+  { id: "completed", label: "Completed", color: "emerald", icon: "[C]" },
+  { id: "learned", label: "Learned", color: "blue", icon: "[L]" },
+  { id: "adapted", label: "Adapted", color: "amber", icon: "[A]" },
+]
+
 type TaskResponse = {
   status: string
   ingested: number
   task_ids: string[]
   tasks: Task[]
 }
-
-type TaskOutcome = "success" | "learning"
 
 const taskKeys = {
   all: ["tasks"] as const,
@@ -60,10 +66,10 @@ interface TasksProps {
 }
 
 export function Tasks({ userId, compact = false }: TasksProps) {
-  const [score, setScore] = useState("")
   const [taskName, setTaskName] = useState("")
-  const [taskOutcome, setTaskOutcome] = useState<TaskOutcome>("success")
   const [taskType, setTaskType] = useState("")
+  const [outcome, setOutcome] = useState<OutcomeType>("completed")
+  const [notes, setNotes] = useState("")
   const [activeTab, setActiveTab] = useState<"list" | "add">("list")
 
   const queryClient = useQueryClient()
@@ -83,8 +89,9 @@ export function Tasks({ userId, compact = false }: TasksProps) {
       taskData: {
         date: string
         name: string
-        score: number
         task_type: string
+        outcome: OutcomeType
+        notes?: string
       }[]
     ) =>
       api<TaskResponse>("/tasks", {
@@ -110,24 +117,22 @@ export function Tasks({ userId, compact = false }: TasksProps) {
   })
 
   async function submit() {
-    if (!taskName || !score || !taskType) return
-
-    const numScore = Math.abs(Number(score))
-    const finalScore = taskOutcome === "success" ? numScore : numScore
+    if (!taskName || !taskType) return
 
     await addTaskMutation.mutateAsync([
       {
         date: new Date().toISOString().slice(0, 10),
         name: taskName,
-        score: finalScore,
         task_type: taskType,
+        outcome: outcome,
+        notes: notes || undefined,
       },
     ])
 
-    setScore("")
     setTaskName("")
     setTaskType("")
-    setTaskOutcome("success")
+    setOutcome("completed")
+    setNotes("")
     setActiveTab("list")
   }
 
@@ -136,8 +141,9 @@ export function Tasks({ userId, compact = false }: TasksProps) {
       {
         date: task.date,
         name: task.name,
-        score: task.score,
         task_type: task.task_type,
+        outcome: task.outcome,
+        notes: task.notes,
       },
     ])
   }
@@ -147,8 +153,9 @@ export function Tasks({ userId, compact = false }: TasksProps) {
       sampleTasks.slice(0, 10).map((task) => ({
         date: task.date,
         name: task.name,
-        score: task.score,
         task_type: task.task_type,
+        outcome: task.outcome,
+        notes: task.notes,
       }))
     )
     setActiveTab("list")
@@ -174,11 +181,10 @@ export function Tasks({ userId, compact = false }: TasksProps) {
     return colors[type] || colors.default
   }
 
-  const avgScore =
-    tasks.length > 0
-      ? tasks.reduce((sum, task) => sum + Math.abs(task.score), 0) /
-        tasks.length
-      : 0
+  const getOutcomeConfig = (outcome: OutcomeType) => {
+    return OUTCOMES.find(o => o.id === outcome) || OUTCOMES[0]
+  }
+
   if (compact) {
     return (
       <div className="flex flex-col h-full">
@@ -187,7 +193,7 @@ export function Tasks({ userId, compact = false }: TasksProps) {
             <h3 className="text-sm font-semibold">Task History</h3>
             {tasks.length > 0 && (
               <p className="text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
-                {tasks.length} tasks 
+                {tasks.length} tasks logged
               </p>
             )}
           </div>
@@ -241,33 +247,20 @@ export function Tasks({ userId, compact = false }: TasksProps) {
             <div className="space-y-2">
               <p className="text-[10px] font-medium">Log task manually</p>
 
-              <div className="flex gap-1">
-                <button
-                  onClick={() => {
-                    setTaskOutcome("success")
-                    setTaskType("")
-                  }}
-                  className={`flex-1 px-1.5 py-1 text-[10px] rounded ${
-                    taskOutcome === "success"
-                      ? "bg-emerald-500 text-white"
-                      : "bg-muted hover:bg-muted/80"
-                  }`}
-                >
-                  Success
-                </button>
-                <button
-                  onClick={() => {
-                    setTaskOutcome("learning")
-                    setTaskType("")
-                  }}
-                  className={`flex-1 px-1.5 py-1 text-[10px] rounded ${
-                    taskOutcome === "learning"
-                      ? "bg-amber-500 text-white"
-                      : "bg-muted hover:bg-muted/80"
-                  }`}
-                >
-                  Learning
-                </button>
+              <div className="flex flex-wrap gap-1">
+                {OUTCOMES.map((o) => (
+                  <button
+                    key={o.id}
+                    onClick={() => setOutcome(o.id as OutcomeType)}
+                    className={`px-1.5 py-0.5 text-[9px] rounded ${
+                      outcome === o.id
+                        ? `bg-${o.color}-500 text-white`
+                        : "bg-muted/50 hover:bg-muted"
+                    }`}
+                  >
+                    {o.icon} {o.label}
+                  </button>
+                ))}
               </div>
 
               <div className="flex flex-wrap gap-1">
@@ -294,27 +287,23 @@ export function Tasks({ userId, compact = false }: TasksProps) {
                   disabled={isSubmitting}
                   className="text-[10px] h-7"
                 />
-                <Input
-                  placeholder="1-10"
-                  type="number"
-                  min="1"
-                  max="10"
-                  value={score}
-                  onChange={(e) => setScore(e.target.value)}
-                  disabled={isSubmitting}
-                  className="w-12 text-[10px] h-7"
-                />
                 <Button
                   size="sm"
                   onClick={submit}
-                  disabled={
-                    isSubmitting || !taskName || !score || !taskType
-                  }
+                  disabled={isSubmitting || !taskName || !taskType}
                   className="h-7 text-[10px]"
                 >
                   Log
                 </Button>
               </div>
+              
+              <Input
+                placeholder="Notes (what did you learn?)"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                disabled={isSubmitting}
+                className="text-[10px] h-7"
+              />
             </div>
 
             <div className="border-t pt-2">
@@ -344,14 +333,14 @@ export function Tasks({ userId, compact = false }: TasksProps) {
                     </div>
                     <span
                       className={`text-[10px] font-medium shrink-0 ${
-                        task.score >= 7
+                        task.outcome === "completed"
                           ? "text-emerald-600"
-                          : task.score >= 4
-                          ? "text-amber-600"
-                          : "text-red-600"
+                          : task.outcome === "learned"
+                          ? "text-blue-600"
+                          : "text-amber-600"
                       }`}
                     >
-                      {task.score}/10
+                      {getOutcomeConfig(task.outcome as OutcomeType).icon}
                     </span>
                   </motion.button>
                 ))}
@@ -375,7 +364,7 @@ export function Tasks({ userId, compact = false }: TasksProps) {
             ) : tasks.length === 0 ? (
               <div className="flex-1 flex flex-col items-center justify-center text-center p-3">
                 <p className="text-[10px] text-muted-foreground mb-1.5">
-                  No tasks completed yet
+                  No tasks logged yet
                 </p>
                 <Button
                   size="sm"
@@ -389,30 +378,45 @@ export function Tasks({ userId, compact = false }: TasksProps) {
             ) : (
               <div className="space-y-1 overflow-y-auto flex-1">
                 <AnimatePresence mode="popLayout">
-                  {tasks.slice(0, 10).map((task, index) => (
-                    <motion.div
-                      key={task.id}
-                      layout
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: 20 }}
-                      transition={{ delay: index * 0.03 }}
-                      className="flex items-center justify-between p-1.5 rounded bg-muted/50"
-                    >
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        <span className="text-[10px] truncate">
-                          {task.name}
-                        </span>
+                  {tasks.slice(0, 10).map((task, index) => {
+                    const outcomeConfig = getOutcomeConfig(task.outcome)
+                    return (
+                      <motion.div
+                        key={task.id}
+                        layout
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: 20 }}
+                        transition={{ delay: index * 0.03 }}
+                        className="flex items-center justify-between p-1.5 rounded bg-muted/50"
+                      >
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <span className="text-[10px] truncate">
+                            {task.name}
+                          </span>
+                          <span
+                            className={`text-[9px] px-1 py-0.5 rounded shrink-0 ${getTaskTypeColor(
+                              task.task_type
+                            )}`}
+                          >
+                            {task.task_type}
+                          </span>
+                        </div>
                         <span
-                          className={`text-[9px] px-1 py-0.5 rounded shrink-0 ${getTaskTypeColor(
-                            task.task_type
-                          )}`}
+                          className={`text-[10px] ${
+                            task.outcome === "completed"
+                              ? "text-emerald-600"
+                              : task.outcome === "learned"
+                              ? "text-blue-600"
+                              : "text-amber-600"
+                          }`}
+                          title={outcomeConfig.label}
                         >
-                          {task.task_type}
+                          {outcomeConfig.icon}
                         </span>
-                      </div>
-                    </motion.div>
-                  ))}
+                      </motion.div>
+                    )
+                  })}
                 </AnimatePresence>
               </div>
             )}
@@ -429,7 +433,7 @@ export function Tasks({ userId, compact = false }: TasksProps) {
           <h2 className="text-lg font-semibold">Task History</h2>
           {tasks.length > 0 && (
             <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
-              {tasks.length} tasks completed • Avg score: {avgScore.toFixed(1)}
+              {tasks.length} tasks logged
             </p>
           )}
         </div>
@@ -487,32 +491,19 @@ export function Tasks({ userId, compact = false }: TasksProps) {
             <p className="text-sm font-medium">Log task manually</p>
 
             <div className="flex gap-1">
-              <button
-                onClick={() => {
-                  setTaskOutcome("success")
-                  setTaskType("")
-                }}
-                className={`flex-1 px-2 py-1.5 text-xs rounded ${
-                  taskOutcome === "success"
-                    ? "bg-emerald-500 text-white"
-                    : "bg-muted hover:bg-muted/80"
-                }`}
-              >
-                Success
-              </button>
-              <button
-                onClick={() => {
-                  setTaskOutcome("learning")
-                  setTaskType("")
-                }}
-                className={`flex-1 px-2 py-1.5 text-xs rounded ${
-                  taskOutcome === "learning"
-                    ? "bg-amber-500 text-white"
-                    : "bg-muted hover:bg-muted/80"
-                }`}
-              >
-                Learning
-              </button>
+              {OUTCOMES.map((o) => (
+                <button
+                  key={o.id}
+                  onClick={() => setOutcome(o.id as OutcomeType)}
+                  className={`flex-1 px-2 py-1.5 text-xs rounded ${
+                    outcome === o.id
+                      ? `bg-${o.color}-500 text-white`
+                      : "bg-muted hover:bg-muted/80"
+                  }`}
+                >
+                  {o.icon} {o.label}
+                </button>
+              ))}
             </div>
 
             <div className="flex flex-wrap gap-1">
@@ -539,24 +530,22 @@ export function Tasks({ userId, compact = false }: TasksProps) {
                 disabled={isSubmitting}
                 className="text-sm"
               />
-              <Input
-                placeholder="1-10"
-                type="number"
-                min="1"
-                max="10"
-                value={score}
-                onChange={(e) => setScore(e.target.value)}
-                disabled={isSubmitting}
-                className="w-16 text-sm"
-              />
               <Button
                 size="sm"
                 onClick={submit}
-                disabled={isSubmitting || !taskName || !score || !taskType}
+                disabled={isSubmitting || !taskName || !taskType}
               >
                 Log
               </Button>
             </div>
+            
+            <Input
+              placeholder="Notes (what did you learn from this task?)"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              disabled={isSubmitting}
+              className="text-sm"
+            />
           </div>
 
           <div className="border-t pt-3">
@@ -584,6 +573,17 @@ export function Tasks({ userId, compact = false }: TasksProps) {
                       {task.task_type}
                     </span>
                   </div>
+                  <span
+                    className={`text-xs ${
+                      task.outcome === "completed"
+                        ? "text-emerald-600"
+                        : task.outcome === "learned"
+                        ? "text-blue-600"
+                        : "text-amber-600"
+                    }`}
+                  >
+                    {getOutcomeConfig(task.outcome as OutcomeType).icon} {getOutcomeConfig(task.outcome as OutcomeType).label}
+                  </span>
                 </motion.button>
               ))}
             </div>
@@ -606,7 +606,7 @@ export function Tasks({ userId, compact = false }: TasksProps) {
           ) : tasks.length === 0 ? (
             <div className="flex-1 flex flex-col items-center justify-center text-center p-4">
               <p className="text-sm text-muted-foreground mb-2">
-                No tasks completed yet
+                No tasks logged yet
               </p>
               <Button
                 size="sm"
@@ -619,28 +619,42 @@ export function Tasks({ userId, compact = false }: TasksProps) {
           ) : (
             <div className="space-y-1.5 overflow-y-auto flex-1">
               <AnimatePresence mode="popLayout">
-                {tasks.slice(0, 15).map((task, index) => (
-                  <motion.div
-                    key={task.id}
-                    layout
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: 20 }}
-                    transition={{ delay: index * 0.03 }}
-                    className="flex items-center justify-between p-2 rounded bg-muted/50"
-                  >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className="text-xs truncate">{task.name}</span>
+                {tasks.slice(0, 15).map((task, index) => {
+                  const outcomeConfig = getOutcomeConfig(task.outcome)
+                  return (
+                    <motion.div
+                      key={task.id}
+                      layout
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: 20 }}
+                      transition={{ delay: index * 0.03 }}
+                      className="flex items-center justify-between p-2 rounded bg-muted/50"
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-xs truncate">{task.name}</span>
+                        <span
+                          className={`text-[10px] px-1.5 py-0.5 rounded shrink-0 ${getTaskTypeColor(
+                            task.task_type
+                          )}`}
+                        >
+                          {task.task_type}
+                        </span>
+                      </div>
                       <span
-                        className={`text-[10px] px-1.5 py-0.5 rounded shrink-0 ${getTaskTypeColor(
-                          task.task_type
-                        )}`}
+                        className={`text-xs flex items-center gap-1 ${
+                          task.outcome === "completed"
+                            ? "text-emerald-600"
+                            : task.outcome === "learned"
+                            ? "text-blue-600"
+                            : "text-amber-600"
+                        }`}
                       >
-                        {task.task_type}
+                        {outcomeConfig.icon} {outcomeConfig.label}
                       </span>
-                    </div>
-                  </motion.div>
-                ))}
+                    </motion.div>
+                  )
+                })}
               </AnimatePresence>
             </div>
           )}

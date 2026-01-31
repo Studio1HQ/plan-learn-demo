@@ -183,18 +183,16 @@ export default function Home() {
     if (isLoggedIn && userId) {
       const loadInitialData = async () => {
         setIsInitialLoading(true)
+        setLoadingMessage("Setting up your workspace...")
 
         try {
           // Load patterns
-          setLoadingMessage("Loading learned patterns...")
           await api(`/alerts/${userId}`)
 
           // Load task history
-          setLoadingMessage("Loading task history...")
           await api(`/tasks/${userId}`)
 
           // Load usage info
-          setLoadingMessage("Preparing your workspace...")
           await api(`/usage/${userId}`)
 
           // Small delay for smooth transition
@@ -298,9 +296,9 @@ export default function Home() {
                 </p>
                 <div className="flex flex-wrap gap-2 justify-center">
                   <Badge variant="outline">3 free messages</Badge>
-                  <Badge variant="outline">Pattern learning</Badge>
+                  <Badge variant="outline" className="bg-blue-50 dark:bg-blue-950/30">Memory-powered</Badge>
                   <Badge variant="outline">Task planning</Badge>
-                  <Badge variant="outline">Long-term memory</Badge>
+                  <Badge variant="outline">Pattern learning</Badge>
                 </div>
               </div>
 

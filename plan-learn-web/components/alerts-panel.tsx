@@ -190,7 +190,7 @@ export function AlertsPanel({
   if (error) {
     return (
       <div className="flex flex-col h-full">
-        {!compact && <h2 className="text-lg font-semibold mb-3">Learned Patterns</h2>}
+        {!compact && <h2 className="text-lg font-semibold mb-3"> Learned Patterns</h2>}
         <Card className={`${compact ? 'p-2' : 'p-3'} border-destructive flex-1`}>
           <p className="text-sm text-destructive">Failed to load patterns</p>
         </Card>
@@ -206,7 +206,7 @@ export function AlertsPanel({
       {!compact && (
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <h2 className="text-lg font-semibold">Patterns</h2>
+            <h2 className="text-lg font-semibold">Learned Patterns</h2>
             {isConnected && (
               <motion.span
                 initial={{ scale: 0 }}

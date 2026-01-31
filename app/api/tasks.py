@@ -17,11 +17,11 @@ def store_task(user_id: str, task):
     cursor = conn.cursor()
     cursor.execute(
         """
-        INSERT INTO task_event (user_id, date, name, score, task_type)
-        VALUES (%s, %s, %s, %s, %s)
+        INSERT INTO task_event (user_id, date, name, task_type, outcome, notes)
+        VALUES (%s, %s, %s, %s, %s, %s)
         RETURNING id
         """,
-        (user_id, task.date, task.name, task.score, task.task_type)
+        (user_id, task.date, task.name, task.task_type, task.outcome, task.notes)
     )
     task_id = cursor.fetchone()[0]
     conn.commit()
@@ -37,7 +37,7 @@ async def get_tasks(user_id: str, limit: int = 20):
     cursor = conn.cursor()
     cursor.execute(
         """
-        SELECT id, date, name, score, task_type, created_at
+        SELECT id, date, name, task_type, outcome, notes, created_at
         FROM task_event
         WHERE user_id = %s
         ORDER BY created_at DESC
@@ -54,9 +54,10 @@ async def get_tasks(user_id: str, limit: int = 20):
             "id": str(row[0]),
             "date": row[1].isoformat() if row[1] else None,
             "name": row[2],
-            "score": float(row[3]),
-            "task_type": row[4],
-            "created_at": row[5].isoformat() if row[5] else None
+            "task_type": row[3],
+            "outcome": row[4],
+            "notes": row[5],
+            "created_at": row[6].isoformat() if row[6] else None
         }
         for row in rows
     ]
@@ -77,8 +78,9 @@ def _process_task(client, task):
             {
                 "role": "user",
                 "content": (
-                    f"On {task.date}, the user completed a {task.task_type} task: '{task.name}' "
-                    f"with a success score of {task.score}/10."
+                    f"On {task.date}, the user completed a {task.task_type} task: '{task.name}'. "
+                    f"Outcome: {task.outcome}."
+                    f"{f' Notes: {task.notes}' if task.notes else ''}"
                 )
             }
         ]
@@ -88,8 +90,9 @@ def _process_task(client, task):
 class Task(BaseModel):
     date: str
     name: str
-    score: float
     task_type: str
+    outcome: str = "completed"  # completed, learned, adapted
+    notes: str | None = None
 
 
 class TasksRequest(BaseModel):
@@ -120,8 +123,9 @@ async def ingest_tasks(
                 "id": str(task_id),
                 "date": task.date,
                 "name": task.name,
-                "score": task.score,
-                "task_type": task.task_type
+                "task_type": task.task_type,
+                "outcome": task.outcome,
+                "notes": task.notes
             })
             # Process with LLM for learning extraction (background, don't block)
             asyncio.create_task(asyncio.to_thread(_process_task, client, task))

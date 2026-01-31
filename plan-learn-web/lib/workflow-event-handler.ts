@@ -3,19 +3,25 @@ import type { WorkflowAction, PlanStep, Pattern, StepStatus } from "./workflow-c
 
 // Parse plan steps from create_plan tool result
 export function parsePlanFromResult(resultPreview: string): { steps: PlanStep[]; success_criteria?: string } | null {
+  console.log("[parsePlanFromResult] Parsing:", resultPreview.substring(0, 200))
+  
   try {
     const parsed = JSON.parse(resultPreview)
+    console.log("[parsePlanFromResult] Parsed keys:", Object.keys(parsed))
 
+    // Backend format: { plan: { steps: [...], success_criteria: "..." } }
     if (parsed.plan && Array.isArray(parsed.plan.steps)) {
+      console.log("[parsePlanFromResult] Found plan.steps with", parsed.plan.steps.length, "steps")
       return {
         steps: parsed.plan.steps.map((step: {
           step_number?: number
           action?: string
+          description?: string
           reasoning?: string
           expected_outcome?: string
         }, index: number) => ({
           step_number: step.step_number || index + 1,
-          action: step.action || '',
+          action: step.action || step.description || `Step ${index + 1}`,
           reasoning: step.reasoning || '',
           expected_outcome: step.expected_outcome || '',
           status: 'pending' as StepStatus,
@@ -26,15 +32,17 @@ export function parsePlanFromResult(resultPreview: string): { steps: PlanStep[];
 
     // Alternative format: steps at root level
     if (Array.isArray(parsed.steps)) {
+      console.log("[parsePlanFromResult] Found steps at root level with", parsed.steps.length, "steps")
       return {
         steps: parsed.steps.map((step: {
           step_number?: number
           action?: string
+          description?: string
           reasoning?: string
           expected_outcome?: string
         }, index: number) => ({
           step_number: step.step_number || index + 1,
-          action: step.action || '',
+          action: step.action || step.description || `Step ${index + 1}`,
           reasoning: step.reasoning || '',
           expected_outcome: step.expected_outcome || '',
           status: 'pending' as StepStatus,
@@ -43,8 +51,11 @@ export function parsePlanFromResult(resultPreview: string): { steps: PlanStep[];
       }
     }
 
+    console.log("[parsePlanFromResult] No valid steps found in result")
     return null
-  } catch {
+  } catch (e) {
+    console.error("[parsePlanFromResult] Failed to parse:", e)
+    console.error("[parsePlanFromResult] Raw result:", resultPreview)
     return null
   }
 }
@@ -85,6 +96,8 @@ export function mapEventToActions(
   currentStepIndex: number
 ): WorkflowAction[] {
   const actions: WorkflowAction[] = []
+  
+  console.log("[mapEventToActions] Event type:", event.type, "- Message:", event.message)
 
   switch (event.type) {
     case 'memori_recall_start':
@@ -93,6 +106,7 @@ export function mapEventToActions(
 
     case 'memori_recall_complete': {
       const patterns = parsePatternsFromEvent(event)
+      console.log("[mapEventToActions] Recalled patterns:", patterns.length)
       actions.push({ type: 'SET_RECALLED_PATTERNS', payload: patterns })
       break
     }
@@ -111,14 +125,22 @@ export function mapEventToActions(
 
     case 'tool_execution_complete': {
       const results = event.data?.results
+      console.log("[mapEventToActions] Tool execution complete with", results?.length || 0, "results")
+      
       if (!results || results.length === 0) break
 
       for (const result of results) {
+        console.log("[mapEventToActions] Processing tool:", result.tool)
+        
         // Handle create_plan tool
         if (result.tool === 'create_plan') {
+          console.log("[mapEventToActions] Found create_plan tool, parsing...")
           const planData = parsePlanFromResult(result.result_preview)
           if (planData) {
+            console.log("[mapEventToActions] Plan parsed successfully with", planData.steps.length, "steps")
             actions.push({ type: 'SET_PLAN', payload: planData })
+          } else {
+            console.error("[mapEventToActions] Failed to parse plan data")
           }
         }
 
@@ -146,20 +168,14 @@ export function mapEventToActions(
 
     case 'memori_store_complete':
       // Extract learnings from message or complete the workflow
-      const learningMatch = event.message.match(/Stored (\d+) learning/)
-      if (learningMatch) {
-        // We don't have the actual learnings in the event, but we know they were stored
-        // The learnings will be shown in the patterns panel
-        actions.push({ type: 'COMPLETE_WORKFLOW' })
-      } else {
-        actions.push({ type: 'COMPLETE_WORKFLOW' })
-      }
+      actions.push({ type: 'COMPLETE_WORKFLOW' })
       break
 
     default:
       break
   }
-
+  
+  console.log("[mapEventToActions] Returning", actions.length, "actions")
   return actions
 }
 

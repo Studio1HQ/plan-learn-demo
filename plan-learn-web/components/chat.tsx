@@ -13,6 +13,9 @@ import { MemoriVisualizer, type MemoriEvent } from "@/components/memori-visualiz
 import { useWorkflow } from "@/lib/workflow-context"
 import { mapEventToActions } from "@/lib/workflow-event-handler"
 
+import { MarkdownMessage } from "@/components/markdown-message"
+import { ClickableSteps } from "@/components/clickable-steps"
+
 type Message = {
   role: "user" | "assistant"
   content: string
@@ -61,17 +64,18 @@ const assistantMessage = (content = ""): Message => ({
 
 const WELCOME_MESSAGE: Message = {
   role: "assistant",
-  content: `Hi! I'm your **Plan & Learn** research agent. I break down complex tasks into steps, execute them, and learn from each success.
+  content: `Hi! I'm your **Plan & Learn** Agent powered by **Memori** 
 
 ## How I Work:
-1. **Plan** - I analyze your task and create a step-by-step strategy
-2. **Execute** - I work through each step methodically
-3. **Learn** - I store successful patterns for future tasks
+1. **Recall** - Before planning, I search my memory for similar past tasks
+2. **Plan** - I create a step-by-step strategy, reusing proven patterns
+3. **Execute** - I work through each step methodically
+4. **Learn** - I store what worked for future similar tasks
 
 ## What makes me special:
-- I remember what worked before and apply it to similar tasks
-- The more we work together, the smarter I get
-- I adapt proven strategies instead of starting from scratch
+**Long-term Memory** - I remember every task across all our conversations
+**Pattern Learning** - I recognize what works and apply it automatically
+**Continuous Improvement** - The more tasks we complete, the smarter I get
 
 ## Try asking me:
 - "Research the best practices for building a REST API"
@@ -265,11 +269,8 @@ export function Chat({ userId, onApiKeyChange, onWorkflowEvent }: ChatProps) {
     }
   }
 
-  async function send() {
-    if (!input.trim() || isTyping) return
-
-    const content = input
-    setInput("")
+  async function sendMessage(content: string) {
+    if (!content.trim() || isTyping) return
 
     // Reset Memori state for new message
     setMemoriEvents([])
@@ -294,6 +295,12 @@ export function Chat({ userId, onApiKeyChange, onWorkflowEvent }: ChatProps) {
     let res: Response
 
     try {
+      // Build conversation history (exclude welcome message and current empty assistant message)
+      const conversationHistory = messages
+        .slice(1) // Skip welcome message
+        .filter(m => m.content.trim() !== "") // Skip empty messages
+        .map(m => ({ role: m.role, content: m.content }))
+
       res = await apiStream("/chat", {
         method: "POST",
         signal: controller.signal,
@@ -301,6 +308,7 @@ export function Chat({ userId, onApiKeyChange, onWorkflowEvent }: ChatProps) {
           user_id: userId,
           message: content,
           openai_api_key: apiKey || undefined,
+          conversation_history: conversationHistory,
         }),
       })
     } catch (error) {
@@ -399,6 +407,14 @@ export function Chat({ userId, onApiKeyChange, onWorkflowEvent }: ChatProps) {
     abortRef.current = null
   }
 
+  // Wrapper for sending input field content
+  async function send() {
+    if (!input.trim()) return
+    const content = input
+    setInput("")
+    await sendMessage(content)
+  }
+
   function stop() {
     abortRef.current?.abort()
     setIsTyping(false)
@@ -449,13 +465,28 @@ export function Chat({ userId, onApiKeyChange, onWorkflowEvent }: ChatProps) {
           {messages.map((m, i) => (
             <Card
               key={i}
-              className={`p-3 whitespace-pre-wrap ${
+              className={`p-3 ${
                 m.role === "user"
                   ? "ml-auto bg-primary text-primary-foreground max-w-[80%]"
-                  : "mr-auto max-w-[80%]"
+                  : "mr-auto max-w-[85%] bg-card"
               }`}
             >
-              {m.content}
+              {m.role === "assistant" ? (
+                <>
+                  <MarkdownMessage content={m.content} />
+                  {/* Show clickable steps for assistant messages with numbered lists */}
+                  {!isTyping && i === messages.length - 1 && m.role === "assistant" && (
+                    <ClickableSteps 
+                      content={m.content} 
+                      onStepClick={(stepText) => {
+                        sendMessage(stepText)
+                      }}
+                    />
+                  )}
+                </>
+              ) : (
+                <span className="whitespace-pre-wrap">{m.content}</span>
+              )}
             </Card>
           ))}
 

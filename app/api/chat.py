@@ -33,14 +33,22 @@ def get_memori_facts(user_id: str, query: str) -> list[dict]:
 
         rows = cursor.fetchall()
         for row in rows:
-            facts.append({
-                "fact": row[0],
-                "mention_count": row[1],
-                "last_mentioned": str(row[2]) if row[2] else None
-            })
+            # Safely handle row data
+            try:
+                if len(row) >= 3:
+                    facts.append({
+                        "fact": row[0] if row[0] else "",
+                        "mention_count": row[1] if row[1] is not None else 1,
+                        "last_mentioned": str(row[2]) if row[2] else None
+                    })
+            except (IndexError, TypeError) as row_error:
+                print(f"Warning: Skipping malformed row in memori facts: {row}, error: {row_error}")
+                continue
     except Exception as e:
         # Table might not exist yet or other error
         print(f"Error fetching memori facts: {e}")
+        import traceback
+        traceback.print_exc()
     finally:
         cursor.close()
         conn.close()
@@ -63,7 +71,7 @@ def get_memori_session_info(user_id: str) -> dict:
             WHERE e.external_id = %s
         """, (user_id,))
         result = cursor.fetchone()
-        session_info["total_sessions"] = result[0] if result else 0
+        session_info["total_sessions"] = result[0] if result and len(result) > 0 else 0
 
         # Count messages
         cursor.execute("""
@@ -75,9 +83,11 @@ def get_memori_session_info(user_id: str) -> dict:
             WHERE e.external_id = %s
         """, (user_id,))
         result = cursor.fetchone()
-        session_info["total_messages"] = result[0] if result else 0
+        session_info["total_messages"] = result[0] if result and len(result) > 0 else 0
     except Exception as e:
         print(f"Error fetching session info: {e}")
+        import traceback
+        traceback.print_exc()
     finally:
         cursor.close()
         conn.close()
@@ -326,13 +336,21 @@ def get_learned_patterns(user_id: str, task_type: str = None, keywords: list = N
 
         rows = cursor.fetchall()
         for row in rows:
-            patterns.append({
-                "pattern": row[0],
-                "times_used": row[1],
-                "last_used": str(row[2]) if row[2] else None
-            })
+            # Safely handle row data
+            try:
+                if len(row) >= 3:
+                    patterns.append({
+                        "pattern": row[0] if row[0] else "",
+                        "times_used": row[1] if row[1] is not None else 1,
+                        "last_used": str(row[2]) if row[2] else None
+                    })
+            except (IndexError, TypeError) as row_error:
+                print(f"Warning: Skipping malformed row in learned patterns: {row}, error: {row_error}")
+                continue
     except Exception as e:
         print(f"Error fetching learned patterns: {e}")
+        import traceback
+        traceback.print_exc()
     finally:
         cursor.close()
         conn.close()
@@ -495,10 +513,16 @@ def execute_tool(tool_name: str, args: dict, user_id: str) -> str:
     return json.dumps({"error": "Unknown tool"})
 
 
+class ChatMessage(BaseModel):
+    role: str
+    content: str
+
+
 class ChatRequest(BaseModel):
     user_id: str
     message: str
     openai_api_key: str | None = None
+    conversation_history: list[ChatMessage] | None = None
 
 @router.post("/chat")
 @limiter.limit("5/minute")
@@ -569,10 +593,16 @@ async def chat(
         }
         yield f"[MEMORI]{json.dumps(memori_event)}[/MEMORI]"
 
-        initial_messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": payload.message}
-        ]
+        # Build messages with conversation history
+        messages = [{"role": "system", "content": system_prompt}]
+        
+        # Add conversation history if provided
+        if payload.conversation_history:
+            for msg in payload.conversation_history:
+                messages.append({"role": msg.role, "content": msg.content})
+        
+        # Add current message
+        messages.append({"role": "user", "content": payload.message})
 
         # === MEMORI VISUALIZATION: LLM call with context ===
         memori_event = {
@@ -585,7 +615,7 @@ async def chat(
         response = client.chat.completions.create(
             model="gpt-4.1-mini",
             stream=True,
-            messages=initial_messages,
+            messages=messages,
             tools=PLAN_LEARN_TOOLS,
             tool_choice="auto",
             stream_options={"include_usage": True}
@@ -645,8 +675,16 @@ async def chat(
 
             raw_client = get_openai_client(payload.openai_api_key)
 
-            tool_messages = [
-                {"role": "system", "content": system_prompt},
+            # Build tool messages with conversation history
+            tool_messages = [{"role": "system", "content": system_prompt}]
+            
+            # Add conversation history if provided
+            if payload.conversation_history:
+                for msg in payload.conversation_history:
+                    tool_messages.append({"role": msg.role, "content": msg.content})
+            
+            # Add current message and assistant tool call
+            tool_messages.extend([
                 {"role": "user", "content": payload.message},
                 {
                     "role": "assistant",
@@ -660,7 +698,7 @@ async def chat(
                         for tc in tool_calls if tc["name"]
                     ]
                 }
-            ]
+            ])
 
             tool_results_summary = []
             for tc in tool_calls:
@@ -677,9 +715,10 @@ async def chat(
                     "tool_call_id": tc["id"],
                     "content": result
                 })
+                # Don't truncate - send full result for proper parsing
                 tool_results_summary.append({
                     "tool": tc["name"],
-                    "result_preview": result[:200] + "..." if len(result) > 200 else result
+                    "result_preview": result
                 })
 
             # === MEMORI VISUALIZATION: Tool execution complete ===

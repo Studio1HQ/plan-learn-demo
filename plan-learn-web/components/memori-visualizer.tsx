@@ -40,24 +40,49 @@ interface MemoriVisualizerProps {
   isActive: boolean
 }
 
-const STATUS_CONFIG: Record<string, { icon: string; color: string; bgColor: string }> = {
-  retrieving: { icon: "🔍", color: "text-blue-600", bgColor: "bg-blue-50 dark:bg-blue-950/30" },
-  complete: { icon: "✓", color: "text-green-600", bgColor: "bg-green-50 dark:bg-green-950/30" },
-  processing: { icon: "⚡", color: "text-purple-600", bgColor: "bg-purple-50 dark:bg-purple-950/30" },
-  executing: { icon: "⚙️", color: "text-orange-600", bgColor: "bg-orange-50 dark:bg-orange-950/30" },
-  storing: { icon: "💾", color: "text-indigo-600", bgColor: "bg-indigo-50 dark:bg-indigo-950/30" },
+const STATUS_CONFIG: Record<string, { icon: string; color: string; bgColor: string; borderColor: string }> = {
+  retrieving: { 
+    icon: "[M]", 
+    color: "text-blue-600", 
+    bgColor: "bg-blue-50 dark:bg-blue-950/30",
+    borderColor: "border-blue-200 dark:border-blue-800"
+  },
+  complete: { 
+    icon: "[ok]", 
+    color: "text-green-600", 
+    bgColor: "bg-green-50 dark:bg-green-950/30",
+    borderColor: "border-green-200 dark:border-green-800"
+  },
+  processing: { 
+    icon: "[~]", 
+    color: "text-purple-600", 
+    bgColor: "bg-purple-50 dark:bg-purple-950/30",
+    borderColor: "border-purple-200 dark:border-purple-800"
+  },
+  executing: { 
+    icon: "[>]", 
+    color: "text-orange-600", 
+    bgColor: "bg-orange-50 dark:bg-orange-950/30",
+    borderColor: "border-orange-200 dark:border-orange-800"
+  },
+  storing: { 
+    icon: "[s]", 
+    color: "text-indigo-600", 
+    bgColor: "bg-indigo-50 dark:bg-indigo-950/30",
+    borderColor: "border-indigo-200 dark:border-indigo-800"
+  },
 }
 
 function getStepLabel(type: MemoriEventType): string {
   switch (type) {
     case "memori_recall_start":
     case "memori_recall_complete":
-      return "Pattern Recall"
+      return "Memory Recall"
     case "memori_llm_start":
       return "Planning & Reasoning"
     case "tool_execution_start":
     case "tool_execution_complete":
-      return "Step Execution"
+      return "Task Execution"
     case "memori_store_start":
     case "memori_store_complete":
       return "Learning Storage"
@@ -103,7 +128,9 @@ function FactsList({ facts }: { facts: FactItem[] | undefined }) {
       animate={{ height: "auto", opacity: 1 }}
       className="mt-2 space-y-1"
     >
-      <p className="text-xs font-medium text-muted-foreground mb-1">Recalled Patterns & Knowledge:</p>
+      <p className="text-xs font-medium text-blue-700 dark:text-blue-300 mb-1 flex items-center gap-1">
+        Patterns & Knowledge Retrieved:
+      </p>
       <div className="space-y-1 max-h-32 overflow-y-auto">
         {facts.slice(0, 5).map((fact: FactItem, i: number) => (
           <motion.div
@@ -111,19 +138,19 @@ function FactsList({ facts }: { facts: FactItem[] | undefined }) {
             initial={{ x: -10, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
             transition={{ delay: i * 0.1 }}
-            className="text-xs bg-background/50 rounded px-2 py-1 border border-border/50"
+            className="text-xs bg-blue-100/50 dark:bg-blue-900/20 rounded px-2 py-1.5 border border-blue-200/50 dark:border-blue-800/50"
           >
             <span className="text-foreground">{fact.fact}</span>
             {fact.mention_count > 1 && (
-              <span className="ml-2 text-muted-foreground">
-                (applied {fact.mention_count}x)
+              <span className="ml-2 text-blue-600 dark:text-blue-400 text-[10px]">
+                (used {fact.mention_count} times)
               </span>
             )}
           </motion.div>
         ))}
         {facts.length > 5 && (
-          <p className="text-xs text-muted-foreground">
-            +{facts.length - 5} more patterns
+          <p className="text-xs text-blue-600 dark:text-blue-400">
+            +{facts.length - 5} more patterns from memory
           </p>
         )}
       </div>
@@ -140,14 +167,16 @@ function ToolResults({ results }: { results: ToolResultItem[] | undefined }) {
       animate={{ height: "auto", opacity: 1 }}
       className="mt-2 space-y-1"
     >
-      <p className="text-xs font-medium text-muted-foreground mb-1">Tool Results:</p>
+      <p className="text-xs font-medium text-orange-700 dark:text-orange-300 mb-1">
+        Tool Results:
+      </p>
       {results.map((result: ToolResultItem, i: number) => (
         <motion.div
           key={i}
           initial={{ x: -10, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
           transition={{ delay: i * 0.1 }}
-          className="text-xs bg-background/50 rounded px-2 py-1 border border-border/50"
+          className="text-xs bg-orange-100/50 dark:bg-orange-900/20 rounded px-2 py-1 border border-orange-200/50 dark:border-orange-800/50"
         >
           <span className="font-medium text-orange-600 dark:text-orange-400">
             {result.tool}
@@ -185,13 +214,16 @@ export function MemoriVisualizer({ events, isActive }: MemoriVisualizerProps) {
         exit={{ opacity: 0, y: -10 }}
         className="mb-3"
       >
-        <Card className="p-3 border-2 border-dashed border-blue-200 dark:border-blue-800 bg-gradient-to-r from-blue-50/50 to-purple-50/50 dark:from-blue-950/20 dark:to-purple-950/20">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="w-5 h-5 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center">
-              <span className="text-[10px] text-white font-bold">P</span>
+        <Card className="p-3 border-2 border-blue-200 dark:border-blue-800 bg-gradient-to-r from-blue-50/80 via-purple-50/50 to-indigo-50/80 dark:from-blue-950/30 dark:via-purple-950/20 dark:to-indigo-950/30">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-6 h-6 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center">
+              <span className="text-[10px] text-white font-bold">M</span>
             </div>
-            <span className="text-xs font-semibold text-blue-700 dark:text-blue-300">
-              Plan & Learn Pipeline
+            <span className="text-sm font-semibold bg-gradient-to-r from-blue-700 to-purple-700 dark:from-blue-300 dark:to-purple-300 bg-clip-text text-transparent">
+              Memori
+            </span>
+            <span className="text-xs text-muted-foreground">
+              Long-term Memory Pipeline
             </span>
             {isActive && isInProgress && (
               <span className="ml-auto text-xs text-muted-foreground flex items-center">
@@ -206,6 +238,7 @@ export function MemoriVisualizer({ events, isActive }: MemoriVisualizerProps) {
             {Array.from(latestEvents.entries()).map(([stepName, event], index) => {
               const config = STATUS_CONFIG[event.status] || STATUS_CONFIG.processing
               const isCurrentStep = event === currentEvent && isInProgress
+              const isMemoryStep = stepName === "Memory Recall" || stepName === "Learning Storage"
 
               return (
                 <motion.div
@@ -213,13 +246,18 @@ export function MemoriVisualizer({ events, isActive }: MemoriVisualizerProps) {
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: index * 0.05 }}
-                  className={`rounded-md p-2 ${config.bgColor}`}
+                  className={`rounded-md p-2 ${config.bgColor} ${config.borderColor} border ${isMemoryStep ? 'ring-1 ring-blue-200 dark:ring-blue-800' : ''}`}
                 >
                   <div className="flex items-center gap-2">
-                    <span className="text-sm">{config.icon}</span>
+                    <span className={`text-sm ${isMemoryStep ? 'animate-pulse' : ''}`}>{config.icon}</span>
                     <span className={`text-xs font-medium ${config.color}`}>
                       {stepName}
                     </span>
+                    {isMemoryStep && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300">
+                        memory
+                      </span>
+                    )}
                     {isCurrentStep && <ProgressDots isActive={true} />}
                     {event.data?.recall_time_ms && (
                       <span className="ml-auto text-[10px] text-muted-foreground">
@@ -247,8 +285,8 @@ export function MemoriVisualizer({ events, isActive }: MemoriVisualizerProps) {
 
                   {/* Show session info if available */}
                   {event.data?.session_info && (
-                    <div className="ml-6 mt-1 text-[10px] text-muted-foreground">
-                      {event.data.session_info.total_sessions} sessions, {event.data.session_info.total_messages} messages
+                    <div className="ml-6 mt-1 text-[10px] text-blue-600 dark:text-blue-400">
+                      Memory: {event.data.session_info.total_sessions} sessions, {event.data.session_info.total_messages} messages stored
                     </div>
                   )}
                 </motion.div>

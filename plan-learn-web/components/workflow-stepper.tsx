@@ -9,7 +9,7 @@ import { PlanStepItem } from "@/components/workflow-stepper/plan-step-item"
 import { AlertsPanel } from "@/components/alerts-panel"
 import { Tasks } from "@/components/tasks"
 
-type TabId = 'workflow' | 'patterns' | 'history'
+type TabId = 'pipeline' | 'patterns' | 'history'
 
 interface WorkflowStepperProps {
   userId: string
@@ -22,14 +22,15 @@ const PHASE_CONFIG: Record<WorkflowPhase, {
   label: string
   description: string
   icon: string
+  memoryPhase?: boolean
 }> = {
-  idle: { label: 'Ready', description: 'Waiting for task', icon: '⏳' },
-  recall: { label: 'Recall', description: 'Retrieving relevant patterns', icon: '🔍' },
-  plan: { label: 'Plan', description: 'Creating execution strategy', icon: '📋' },
-  execute: { label: 'Execute', description: 'Running plan steps', icon: '⚙️' },
-  learn: { label: 'Learn', description: 'Storing new learnings', icon: '💡' },
-  complete: { label: 'Complete', description: 'Workflow finished', icon: '✓' },
-  error: { label: 'Error', description: 'Something went wrong', icon: '✕' },
+  idle: { label: 'Ready', description: 'Waiting for task', icon: '' },
+  recall: { label: 'Memory Recall', description: 'Retrieving patterns from Memori', icon: '', memoryPhase: true },
+  plan: { label: 'Plan', description: 'Creating execution strategy', icon: '' },
+  execute: { label: 'Execute', description: 'Running plan steps', icon: '' },
+  learn: { label: 'Memory Store', description: 'Storing learnings in Memori', icon: '', memoryPhase: true },
+  complete: { label: 'Complete', description: 'Workflow finished', icon: '' },
+  error: { label: 'Error', description: 'Something went wrong', icon: '' },
 }
 
 function formatDuration(ms: number | null): string {
@@ -42,34 +43,27 @@ function TabButton({
   active,
   onClick,
   children,
-  badge,
 }: {
   active: boolean
   onClick: () => void
   children: React.ReactNode
-  badge?: number
 }) {
   return (
     <button
       onClick={onClick}
-      className={`flex-1 px-3 py-2 text-sm font-medium transition-colors relative ${
+      className={`flex-1 px-3 py-2 text-xs font-medium transition-colors relative ${
         active
           ? 'text-foreground border-b-2 border-primary'
           : 'text-muted-foreground hover:text-foreground border-b-2 border-transparent'
       }`}
     >
       {children}
-      {badge !== undefined && badge > 0 && (
-        <span className="absolute -top-1 -right-1 w-4 h-4 text-[10px] bg-primary text-primary-foreground rounded-full flex items-center justify-center">
-          {badge > 9 ? '9+' : badge}
-        </span>
-      )}
     </button>
   )
 }
 
 export function WorkflowStepper({ userId, apiKey }: WorkflowStepperProps) {
-  const [activeTab, setActiveTab] = useState<TabId>('workflow')
+  const [activeTab, setActiveTab] = useState<TabId>('pipeline')
   const { state, getTotalDuration, resetWorkflow } = useWorkflow()
 
   const isActive = state.phase !== 'idle' && state.phase !== 'complete' && state.phase !== 'error'
@@ -83,13 +77,13 @@ export function WorkflowStepper({ userId, apiKey }: WorkflowStepperProps) {
       {/* Tab Bar */}
       <div className="flex border-b mb-3 shrink-0">
         <TabButton
-          active={activeTab === 'workflow'}
-          onClick={() => setActiveTab('workflow')}
+          active={activeTab === 'pipeline'}
+          onClick={() => setActiveTab('pipeline')}
         >
-          Workflow
+          Pipeline
           {isActive && (
             <motion.span
-              className="ml-1.5 w-2 h-2 bg-blue-500 rounded-full inline-block"
+              className="ml-1 w-1.5 h-1.5 bg-blue-500 rounded-full inline-block"
               animate={{ opacity: [1, 0.4, 1] }}
               transition={{ duration: 1.5, repeat: Infinity }}
             />
@@ -112,9 +106,9 @@ export function WorkflowStepper({ userId, apiKey }: WorkflowStepperProps) {
       {/* Tab Content */}
       <div className="flex-1 overflow-hidden">
         <AnimatePresence mode="wait">
-          {activeTab === 'workflow' && (
+          {activeTab === 'pipeline' && (
             <motion.div
-              key="workflow"
+              key="pipeline"
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
@@ -124,11 +118,11 @@ export function WorkflowStepper({ userId, apiKey }: WorkflowStepperProps) {
               {!showWorkflow ? (
                 <Card className="flex-1 flex flex-col items-center justify-center p-6 text-center">
                   <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-4">
-                    <span className="text-2xl">📋</span>
+                    <span className="text-2xl">-</span>
                   </div>
                   <h3 className="font-semibold mb-2">No Active Workflow</h3>
                   <p className="text-sm text-muted-foreground max-w-[200px]">
-                    Start a conversation to see the Plan & Learn workflow in action.
+                    Start a conversation to see the Plan and Learn workflow in action.
                   </p>
                 </Card>
               ) : (
@@ -147,6 +141,7 @@ export function WorkflowStepper({ userId, apiKey }: WorkflowStepperProps) {
                           label={PHASE_CONFIG.recall.label}
                           description={PHASE_CONFIG.recall.description}
                           icon={PHASE_CONFIG.recall.icon}
+                          highlight={true}
                           status={
                             state.phase === 'recall'
                               ? 'active'
@@ -157,10 +152,10 @@ export function WorkflowStepper({ userId, apiKey }: WorkflowStepperProps) {
                           duration={state.timing.phaseDurations.recall}
                           isExpanded={state.phase === 'recall' || state.recalledPatterns.length > 0}
                         >
-                          {state.recalledPatterns.length > 0 && (
+                          {state.recalledPatterns.length > 0 ? (
                             <div className="space-y-1 mt-2">
-                              <p className="text-xs font-medium text-muted-foreground">
-                                {state.recalledPatterns.length} pattern{state.recalledPatterns.length !== 1 ? 's' : ''} recalled:
+                              <p className="text-xs font-medium text-blue-700 dark:text-blue-300 flex items-center gap-1">
+                                <span>*</span> {state.recalledPatterns.length} pattern{state.recalledPatterns.length !== 1 ? 's' : ''} from memory:
                               </p>
                               <div className="space-y-1 max-h-24 overflow-y-auto">
                                 {state.recalledPatterns.slice(0, 3).map((pattern, i) => (
@@ -173,19 +168,23 @@ export function WorkflowStepper({ userId, apiKey }: WorkflowStepperProps) {
                                   >
                                     {pattern.fact}
                                     {pattern.mention_count > 1 && (
-                                      <span className="ml-1 text-muted-foreground">
-                                        ({pattern.mention_count}x)
+                                      <span className="ml-1 text-blue-600 dark:text-blue-400">
+                                        (used {pattern.mention_count} times)
                                       </span>
                                     )}
                                   </motion.div>
                                 ))}
                                 {state.recalledPatterns.length > 3 && (
-                                  <p className="text-[10px] text-muted-foreground pl-2">
-                                    +{state.recalledPatterns.length - 3} more
+                                  <p className="text-[10px] text-blue-600 dark:text-blue-400 pl-2">
+                                    +{state.recalledPatterns.length - 3} more from memory
                                   </p>
                                 )}
                               </div>
                             </div>
+                          ) : currentPhaseIndex > 0 && (
+                            <p className="text-[10px] text-muted-foreground mt-2">
+                              No previous patterns found - this is a new learning opportunity!
+                            </p>
                           )}
                         </PhaseStep>
 
@@ -280,6 +279,7 @@ export function WorkflowStepper({ userId, apiKey }: WorkflowStepperProps) {
                           label={PHASE_CONFIG.learn.label}
                           description={PHASE_CONFIG.learn.description}
                           icon={PHASE_CONFIG.learn.icon}
+                          highlight={true}
                           status={
                             state.phase === 'learn'
                               ? 'active'
@@ -292,8 +292,8 @@ export function WorkflowStepper({ userId, apiKey }: WorkflowStepperProps) {
                         >
                           {state.learnings.length > 0 && (
                             <div className="space-y-1 mt-2">
-                              <p className="text-xs font-medium text-muted-foreground">
-                                Learnings stored:
+                              <p className="text-xs font-medium text-indigo-700 dark:text-indigo-300 flex items-center gap-1">
+                                <span>*</span> Stored in Memori for future tasks:
                               </p>
                               <div className="space-y-1">
                                 {state.learnings.map((learning, i) => (

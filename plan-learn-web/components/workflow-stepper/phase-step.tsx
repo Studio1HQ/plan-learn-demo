@@ -12,6 +12,7 @@ interface PhaseStepProps {
   status: StepStatus
   duration?: number | null
   isExpanded?: boolean
+  highlight?: boolean
   children?: React.ReactNode
 }
 
@@ -55,6 +56,7 @@ export function PhaseStep({
   status,
   duration,
   isExpanded: defaultExpanded = false,
+  highlight = false,
   children,
 }: PhaseStepProps) {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded)
@@ -71,7 +73,7 @@ export function PhaseStep({
       <div
         className={`flex gap-3 p-2 rounded-lg transition-colors ${
           hasContent ? 'cursor-pointer hover:bg-muted/50' : ''
-        } ${status === 'active' ? styles.bg : ''}`}
+        } ${status === 'active' ? styles.bg : ''} ${highlight ? 'ring-1 ring-blue-200 dark:ring-blue-800 bg-blue-50/30 dark:bg-blue-950/10' : ''}`}
         onClick={() => hasContent && setIsExpanded(!isExpanded)}
       >
         {/* Status indicator */}
@@ -117,7 +119,7 @@ export function PhaseStep({
         {/* Content */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2">
-            <h4 className={`text-sm font-medium ${styles.text}`}>{label}</h4>
+            <h4 className={`text-sm font-medium ${styles.text} ${highlight ? 'text-blue-700 dark:text-blue-300' : ''}`}>{label}</h4>
             <div className="flex items-center gap-2">
               {duration !== null && duration !== undefined && (
                 <span className="text-[10px] text-muted-foreground">
