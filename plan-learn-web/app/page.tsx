@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect } from "react"
 import Image from "next/image"
 
 import { motion, AnimatePresence } from "framer-motion"
@@ -13,6 +13,60 @@ import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { api } from "@/lib/api"
+
+// Central loading component
+function CentralLoader({ message }: { message: string }) {
+  return (
+    <div className="h-screen w-screen flex flex-col items-center justify-center bg-background">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="flex flex-col items-center gap-6"
+      >
+        {/* Animated logo/spinner */}
+        <div className="relative">
+          <motion.div
+            className="w-16 h-16 rounded-full border-4 border-primary/20"
+            animate={{ rotate: 360 }}
+            transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+          />
+          <motion.div
+            className="absolute inset-0 w-16 h-16 rounded-full border-4 border-transparent border-t-primary"
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+          />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span className="text-2xl font-bold text-primary">P</span>
+          </div>
+        </div>
+
+        {/* Loading text */}
+        <div className="text-center space-y-2">
+          <h2 className="text-lg font-semibold">Plan & Learn Agent</h2>
+          <motion.p
+            className="text-sm text-muted-foreground"
+            animate={{ opacity: [0.5, 1, 0.5] }}
+            transition={{ duration: 1.5, repeat: Infinity }}
+          >
+            {message}
+          </motion.p>
+        </div>
+
+        {/* Progress dots */}
+        <div className="flex gap-1.5">
+          {[0, 1, 2].map((i) => (
+            <motion.div
+              key={i}
+              className="w-2 h-2 rounded-full bg-primary"
+              animate={{ scale: [1, 1.3, 1], opacity: [0.5, 1, 0.5] }}
+              transition={{ duration: 0.8, repeat: Infinity, delay: i * 0.2 }}
+            />
+          ))}
+        </div>
+      </motion.div>
+    </div>
+  )
+}
 
 const MEMORI_DOCS_URL = "https://memorilabs.ai/docs/"
 const MEMORI_REPO_URL = "https://github.com/MemoriLabs/memori-cookbook"
@@ -117,10 +171,45 @@ function PoweredByMemori() {
 export default function Home() {
   const [userId, setUserId] = useState("")
   const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [isInitialLoading, setIsInitialLoading] = useState(false)
+  const [loadingMessage, setLoadingMessage] = useState("Initializing...")
   const [inputValue, setInputValue] = useState("")
   const [apiKey, setApiKey] = useState("")
   const [isResetting, setIsResetting] = useState(false)
   const [showResetConfirm, setShowResetConfirm] = useState(false)
+
+  // Load initial data when user logs in
+  useEffect(() => {
+    if (isLoggedIn && userId) {
+      const loadInitialData = async () => {
+        setIsInitialLoading(true)
+
+        try {
+          // Load patterns
+          setLoadingMessage("Loading learned patterns...")
+          await api(`/alerts/${userId}`)
+
+          // Load task history
+          setLoadingMessage("Loading task history...")
+          await api(`/tasks/${userId}`)
+
+          // Load usage info
+          setLoadingMessage("Preparing your workspace...")
+          await api(`/usage/${userId}`)
+
+          // Small delay for smooth transition
+          await new Promise(resolve => setTimeout(resolve, 500))
+        } catch (error) {
+          console.error("Error loading initial data:", error)
+          // Continue anyway - components will handle their own loading states
+        } finally {
+          setIsInitialLoading(false)
+        }
+      }
+
+      loadInitialData()
+    }
+  }, [isLoggedIn, userId])
 
   const handleLogin = () => {
     if (inputValue.trim()) {
@@ -144,6 +233,11 @@ export default function Home() {
       setIsResetting(false)
       setShowResetConfirm(false)
     }
+  }
+
+  // Show central loader while loading initial data
+  if (isInitialLoading) {
+    return <CentralLoader message={loadingMessage} />
   }
 
   if (!isLoggedIn) {
@@ -252,7 +346,12 @@ export default function Home() {
   }
 
   return (
-    <main className="h-screen flex flex-col overflow-hidden">
+    <motion.main
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.3 }}
+      className="h-screen flex flex-col overflow-hidden"
+    >
       {/* Header */}
       <motion.header
         initial={{ opacity: 0, y: -10 }}
@@ -381,6 +480,6 @@ export default function Home() {
       <div className="shrink-0 border-t py-2 bg-muted/30">
         <PoweredByMemori />
       </div>
-    </main>
+    </motion.main>
   )
 }
