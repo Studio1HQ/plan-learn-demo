@@ -179,7 +179,6 @@ export function Tasks({ userId, compact = false }: TasksProps) {
       ? tasks.reduce((sum, task) => sum + Math.abs(task.score), 0) /
         tasks.length
       : 0
-
   if (compact) {
     return (
       <div className="flex flex-col h-full">
